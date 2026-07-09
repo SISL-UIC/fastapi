@@ -17,7 +17,7 @@ env:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     # Required permissions
     permissions:
       pull-requests: read
@@ -51,7 +51,7 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        os: [ windows-latest, macos-latest ]
+        os: [ self-hosted ]
         python-version: [ "3.14", "3.14t" ]
         deprecated-tests: [ "no-deprecation" ]
         uv-resolution:
@@ -60,38 +60,28 @@ jobs:
           - starlette-pypi
           - starlette-git
         include:
-          - os: macos-latest
-            python-version: "3.10"
-            coverage: coverage
-            uv-resolution: lowest-direct
-            deprecated-tests: "no-deprecation"
-          - os: windows-latest
-            python-version: "3.12"
-            coverage: coverage
-            uv-resolution: lowest-direct
-            deprecated-tests: "no-deprecation"
-          - os: ubuntu-latest
+          - os: self-hosted
             python-version: "3.13"
             coverage: coverage
             uv-resolution: highest
             deprecated-tests: "no-deprecation"
-          - os: ubuntu-latest
+          - os: self-hosted
             python-version: "3.13"
             uv-resolution: highest
             codspeed: codspeed
             deprecated-tests: "no-deprecation"
-          - os: ubuntu-latest
+          - os: self-hosted
             python-version: "3.13"
             uv-resolution: highest
             deprecated-tests: "no-deprecation"
             without-httpx2: true
-          - os: ubuntu-latest
+          - os: self-hosted
             python-version: "3.14"
             coverage: coverage
             uv-resolution: highest
             starlette-src: starlette-git
             deprecated-tests: "test-deprecation"
-          - os: ubuntu-latest
+          - os: self-hosted
             python-version: "3.14t"
             coverage: coverage
             uv-resolution: highest
@@ -139,7 +129,7 @@ jobs:
         if: matrix.without-httpx2 == 'true'
         run: uv pip uninstall httpx2
       - name: Reinstall SQLAlchemy without Cython extensions
-        if: matrix.python-version == '3.14t' && matrix.os == 'ubuntu-latest'
+        if: matrix.python-version == '3.14t' && matrix.os == 'self-hosted'
         run: "DISABLE_SQLALCHEMY_CEXT=1 uv pip install --force-reinstall --no-binary :all: sqlalchemy"
       - run: mkdir coverage
       - name: Test
@@ -161,7 +151,7 @@ jobs:
     needs:
       - changes
     if: needs.changes.outputs.src == 'true' || github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 5
     env:
       UV_PYTHON: "3.13"
@@ -199,7 +189,7 @@ jobs:
   coverage-combine:
     needs:
       - test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 5
     steps:
       - name: Dump GitHub context
@@ -248,7 +238,7 @@ jobs:
       - test
       - coverage-combine
       - benchmark
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 5
     steps:
       - name: Dump GitHub context
