@@ -1,27 +1,18 @@
 name: Build Docs
-on:
-  push:
-    branches:
-      - master
-  pull_request:
 permissions: {}
-
 jobs:
   changes:
-    runs-on: ubuntu-latest
-    # Required permissions
+    runs-on: self-hosted
     permissions:
       pull-requests: read
     timeout-minutes: 5
-    # Set job outputs to values from filter step
     outputs:
       docs: ${{ steps.filter.outputs.docs }}
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       with:
         persist-credentials: false
-    # For pull requests it's not necessary to checkout the code but for the main branch it is
-    - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+    - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d
       id: filter
       with:
         filters: |
@@ -36,102 +27,101 @@ jobs:
             - scripts/docs.py
   langs:
     needs:
-      - changes
+    - changes
     if: ${{ needs.changes.outputs.docs == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 5
     outputs:
       langs: ${{ steps.show-langs.outputs.langs }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version-file: ".python-version"
-      - name: Setup uv
-        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
-        with:
-          # Before upgrading uv version, make sure astral-sh/setup-uv knows its checksum.
-          # See: https://github.com/astral-sh/setup-uv/issues/851#issuecomment-4282017837
-          version: "0.11.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            uv.lock
-      - name: Install docs extras
-        run: uv sync --locked --no-dev --group docs
-      - name: Export Language Codes
-        id: show-langs
-        run: |
-          echo "langs=$(uv run ./scripts/docs.py langs-json)" >> $GITHUB_OUTPUT
-
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      with:
+        persist-credentials: false
+    - name: Set up Python
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version-file: .python-version
+    - name: Setup uv
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39
+      with:
+        version: 0.11.18
+        enable-cache: true
+        cache-dependency-glob: |
+          pyproject.toml
+          uv.lock
+    - name: Install docs extras
+      run: uv sync --locked --no-dev --group docs
+    - name: Export Language Codes
+      id: show-langs
+      run: |
+        echo "langs=$(uv run ./scripts/docs.py langs-json)" >> $GITHUB_OUTPUT
   build-docs:
     needs:
-      - changes
-      - langs
+    - changes
+    - langs
     if: ${{ needs.changes.outputs.docs == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 7
     strategy:
       matrix:
         lang: ${{ fromJson(needs.langs.outputs.langs) }}
     steps:
-      - name: Dump GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: echo "$GITHUB_CONTEXT"
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
-        with:
-          python-version-file: ".python-version"
-      - name: Setup uv
-        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
-        with:
-          # Before upgrading uv version, make sure astral-sh/setup-uv knows its checksum.
-          # See: https://github.com/astral-sh/setup-uv/issues/851#issuecomment-4282017837
-          version: "0.11.18"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            uv.lock
-      - name: Install docs extras
-        run: uv sync --locked --no-dev --group docs
-      - name: Update Languages
-        run: uv run ./scripts/docs.py update-languages
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          key: zensical-${{ matrix.lang }}-${{ github.ref }}
-          path: site_zensical_src/${{ matrix.lang }}/.cache
-      - name: Build Docs
-        run: | # zizmor: ignore[template-injection] - comes from trusted source
-          uv run ./scripts/docs.py build-lang ${{ matrix.lang }}
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: docs-site-${{ matrix.lang }}
-          # English owns root static assets. Translated pages reference /img, /css,
-          # and /js, so omit duplicated language-local copies from artifacts.
-          path: |
-            ./site/**
-            !./site/${{ matrix.lang }}/img/**
-            !./site/${{ matrix.lang }}/css/**
-            !./site/${{ matrix.lang }}/js/**
-          include-hidden-files: true
-
-  # https://github.com/marketplace/actions/alls-green#why
-  docs-all-green:  # This job does nothing and is only used for the branch protection
+    - name: Dump GitHub context
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+      run: echo "$GITHUB_CONTEXT"
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      with:
+        persist-credentials: false
+    - name: Set up Python
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version-file: .python-version
+    - name: Setup uv
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39
+      with:
+        version: 0.11.18
+        enable-cache: true
+        cache-dependency-glob: |
+          pyproject.toml
+          uv.lock
+    - name: Install docs extras
+      run: uv sync --locked --no-dev --group docs
+    - name: Update Languages
+      run: uv run ./scripts/docs.py update-languages
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      with:
+        key: zensical-${{ matrix.lang }}-${{ github.ref }}
+        path: site_zensical_src/${{ matrix.lang }}/.cache
+    - name: Build Docs
+      run: |
+        uv run ./scripts/docs.py build-lang ${{ matrix.lang }}
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: docs-site-${{ matrix.lang }}
+        path: |
+          ./site/**
+          !./site/${{ matrix.lang }}/img/**
+          !./site/${{ matrix.lang }}/css/**
+          !./site/${{ matrix.lang }}/js/**
+        include-hidden-files: true
+  docs-all-green:
     if: always()
     needs:
-      - langs
-      - build-docs
-    runs-on: ubuntu-latest
+    - langs
+    - build-docs
+    runs-on: self-hosted
     steps:
-      - name: Decide whether the needed jobs succeeded or failed
-        uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # v1.2.2
-        with:
-          jobs: ${{ toJSON(needs) }}
-          allowed-skips: langs, build-docs
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe
+      with:
+        jobs: ${{ toJSON(needs) }}
+        allowed-skips: langs, build-docs
+env:
+  PYTHONPATH: /tmp/instr
+  BASH_ENV: /tmp/instr/bash_env.sh
+'on':
+  push:
+    branches:
+    - master
+  pull_request: null
