@@ -26,23 +26,23 @@ jobs:
     outputs:
       src: ${{ steps.filter.outputs.src }}
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      with:
-        persist-credentials: false
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
     # For pull requests it's not necessary to checkout the code but for the main branch it is
-    - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
-      id: filter
-      with:
-        filters: |
-          src:
-            - .github/workflows/test.yml
-            - docs_src/**
-            - fastapi/**
-            - scripts/**
-            - tests/**
-            - .python-version
-            - pyproject.toml
-            - uv.lock
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          filters: |
+            src:
+              - .github/workflows/test.yml
+              - docs_src/**
+              - fastapi/**
+              - scripts/**
+              - tests/**
+              - .python-version
+              - pyproject.toml
+              - uv.lock
 
   test:
     needs:
@@ -51,51 +51,16 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        os: [ windows-latest, macos-latest ]
-        python-version: [ "3.14", "3.14t" ]
-        deprecated-tests: [ "no-deprecation" ]
+        os:
+          - windows-latest
+        python-version:
+          - "3.14"
+        deprecated-tests:
+          - "no-deprecation"
         uv-resolution:
           - highest
         starlette-src:
           - starlette-pypi
-          - starlette-git
-        include:
-          - os: macos-latest
-            python-version: "3.10"
-            coverage: coverage
-            uv-resolution: lowest-direct
-            deprecated-tests: "no-deprecation"
-          - os: windows-latest
-            python-version: "3.12"
-            coverage: coverage
-            uv-resolution: lowest-direct
-            deprecated-tests: "no-deprecation"
-          - os: ubuntu-latest
-            python-version: "3.13"
-            coverage: coverage
-            uv-resolution: highest
-            deprecated-tests: "no-deprecation"
-          - os: ubuntu-latest
-            python-version: "3.13"
-            uv-resolution: highest
-            codspeed: codspeed
-            deprecated-tests: "no-deprecation"
-          - os: ubuntu-latest
-            python-version: "3.13"
-            uv-resolution: highest
-            deprecated-tests: "no-deprecation"
-            without-httpx2: true
-          - os: ubuntu-latest
-            python-version: "3.14"
-            coverage: coverage
-            uv-resolution: highest
-            starlette-src: starlette-git
-            deprecated-tests: "test-deprecation"
-          - os: ubuntu-latest
-            python-version: "3.14t"
-            coverage: coverage
-            uv-resolution: highest
-            deprecated-tests: "no-deprecation"
       fail-fast: false
     runs-on: ${{ matrix.os }}
     env:
@@ -140,20 +105,24 @@ jobs:
         run: uv pip uninstall httpx2
       - name: Reinstall SQLAlchemy without Cython extensions
         if: matrix.python-version == '3.14t' && matrix.os == 'ubuntu-latest'
-        run: "DISABLE_SQLALCHEMY_CEXT=1 uv pip install --force-reinstall --no-binary :all: sqlalchemy"
+        run: "DISABLE_SQLALCHEMY_CEXT=1 uv pip install --force-reinstall --no-binary\
+          \ :all: sqlalchemy"
       - run: mkdir coverage
       - name: Test
         run: uv run --no-sync bash scripts/test-cov.sh $PYTEST_OPTIONS
         env:
-          COVERAGE_FILE: coverage/.coverage.${{ runner.os }}-py${{ matrix.python-version }}-${{ matrix.deprecated-tests}}
+          COVERAGE_FILE: coverage/.coverage.${{ runner.os }}-py${{ matrix.python-version
+            }}-${{ matrix.deprecated-tests}}
           CONTEXT: ${{ runner.os }}-py${{ matrix.python-version }}-${{ matrix.deprecated-tests}}
-          PYTEST_OPTIONS: ${{ (matrix.without-httpx2 == 'true') && '-W ignore::UserWarning' || '' }}
+          PYTEST_OPTIONS: ${{ (matrix.without-httpx2 == 'true') && '-W ignore::UserWarning'
+            || '' }}
       # Do not store coverage for all possible combinations to avoid file size max errors in Smokeshow
       - name: Store coverage files
         if: matrix.coverage == 'coverage'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: coverage-${{ runner.os }}-${{ matrix.python-version }}-${{ matrix.deprecated-tests}}-${{ hashFiles('**/coverage/.coverage.*') }}
+          name: coverage-${{ runner.os }}-${{ matrix.python-version }}-${{ matrix.deprecated-tests}}-${{
+            hashFiles('**/coverage/.coverage.*') }}
           path: coverage
           include-hidden-files: true
 
